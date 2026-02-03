@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Codex Uptime</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="bg-texture"></div>
+    <main>
+      <header class="hero">
+        <div>
+          <h1>Codex utilization</h1>
+          <div class="window-meta">
+            <span id="windowLabel">All time</span>
+            <span class="window-sep">•</span>
+            <span id="windowRange">--</span>
+          </div>
+        </div>
+      </header>
+
+      <section class="controls" id="controls">
+        <div class="button-row" id="windowButtons"></div>
+        <div class="range-box" id="rangeBox">
+          <div class="range-label">Custom range</div>
+          <div class="range-inputs">
+            <label>
+              <span>Start</span>
+              <input type="datetime-local" id="startInput" />
+            </label>
+            <label>
+              <span>End</span>
+              <input type="datetime-local" id="endInput" />
+            </label>
+          </div>
+          <div class="range-actions">
+            <button class="ghost" id="nowBtn">Set end to now</button>
+            <button class="solid" id="applyBtn">Apply</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="sources">
+        <div class="sources-card">
+          <div class="sources-header">
+            <div>
+              <div class="sources-title">Sources</div>
+              <div class="sources-subtitle">Add a remote machine (password required).</div>
+            </div>
+            <button class="ghost" id="toggleSourceForm">+ Source</button>
+          </div>
+          <form class="source-form" id="sourceForm">
+            <label>
+              <span>Label</span>
+              <input type="text" id="sourceLabel" placeholder="Laptop / server" />
+            </label>
+            <label>
+              <span>Host</span>
+              <input type="text" id="sourceHost" placeholder="example.com" required />
+            </label>
+            <label>
+              <span>User</span>
+              <input type="text" id="sourceUser" placeholder="reuben" required />
+            </label>
+            <label>
+              <span>Port</span>
+              <input type="number" id="sourcePort" placeholder="22" />
+            </label>
+            <label>
+              <span>Password</span>
+              <input type="password" id="sourcePassword" required />
+            </label>
+            <label>
+              <span>Remote path</span>
+              <input type="text" id="sourcePath" placeholder="~/.codex/sessions" />
+            </label>
+            <div class="source-actions">
+              <button type="button" class="ghost" id="sourceCancel">Cancel</button>
+              <button type="submit" class="solid">Add source</button>
+            </div>
+            <p class="source-note">
+              Password is stored locally in <code>data/sources.json</code>.
+            </p>
+          </form>
+          <div class="sources-list" id="sourcesList"></div>
+        </div>
+      </section>
+
+      <section class="stats">
+        <div class="stat">
+          <div class="stat-label">Uptime</div>
+          <div class="stat-value" id="uptimePct">--</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">API price</div>
+          <div class="stat-value" id="costUsd">--</div>
+        </div>
+      </section>
+
+      <section class="chart-card">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title" id="chartTitle">Tokens by day</div>
+            <div class="chart-subtitle" id="chartSubtitle">Tokens per bucket.</div>
+          </div>
+          <div class="legend">
+            <span class="dot any"></span> Tokens
+          </div>
+        </div>
+        <canvas id="chart"></canvas>
+      </section>
+
+    </main>
+
+    <script src="/app.js"></script>
+  </body>
+</html>
