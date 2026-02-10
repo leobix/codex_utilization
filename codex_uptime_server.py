@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import errno
 import json
 import os
 import errno
@@ -21,6 +22,9 @@ LOCAL_SESSIONS_DIR = Path(
     os.environ.get("CODEX_SESSIONS_DIR", str(Path.home() / ".codex" / "sessions"))
 ).expanduser()
 INCLUDE_LOCAL = os.environ.get("CODEX_INCLUDE_LOCAL", "1") != "0"
+DEFAULT_HOST = os.environ.get("CODEX_UPTIME_HOST", "127.0.0.1")
+DEFAULT_PORT = int(os.environ.get("CODEX_UPTIME_PORT", "8008"))
+MAX_PORT_ATTEMPTS = int(os.environ.get("CODEX_PORT_RETRY_COUNT", "20"))
 
 
 def content_type_for(path: Path) -> str:
@@ -215,6 +219,15 @@ class Handler(BaseHTTPRequestHandler):
         return
 
 
+class ReusableThreadingHTTPServer(ThreadingHTTPServer):
+    allow_reuse_address = True
+
+
+def log_event(message: str, level: str = "INFO") -> None:
+    stamp = datetime.now().astimezone().isoformat(timespec="seconds")
+    print(f"[{stamp}] [{level}] {message}")
+
+
 def load_sources() -> list:
     if not SOURCES_FILE.exists():
         return []
@@ -308,18 +321,58 @@ def sync_source(source: dict) -> None:
         raise RuntimeError(result.stderr.strip() or result.stdout.strip() or "Sync failed.")
 
 
+def create_server(host: str, start_port: int, max_attempts: int) -> tuple[ReusableThreadingHTTPServer, int]:
+    if max_attempts < 1:
+        raise ValueError("max_attempts must be at least 1")
+
+    for offset in range(max_attempts):
+        port = start_port + offset
+        try:
+            server = ReusableThreadingHTTPServer((host, port), Handler)
+            if offset > 0:
+                log_event(
+                    f"Requested port {start_port} is busy. Using fallback port {port}.",
+                    level="WARN",
+                )
+            return server, port
+        except OSError as exc:
+            if exc.errno == errno.EADDRINUSE and offset < max_attempts - 1:
+                log_event(f"Port {port} is already in use; trying {port + 1}.", level="WARN")
+                continue
+            raise
+
+    raise RuntimeError("Failed to bind server socket.")
+
+
 def main() -> int:
     if not WEB_DIR.exists():
-        print(f"Missing web assets directory: {WEB_DIR}")
+        log_event(f"Missing web assets directory: {WEB_DIR}", level="ERROR")
         return 2
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     SOURCES_DIR.mkdir(parents=True, exist_ok=True)
-    server = ThreadingHTTPServer(("127.0.0.1", 8008), Handler)
-    print("Serving on http://127.0.0.1:8008")
+    try:
+        server, port = create_server(DEFAULT_HOST, DEFAULT_PORT, MAX_PORT_ATTEMPTS)
+    except OSError as exc:
+        if exc.errno == errno.EADDRINUSE:
+            log_event(
+                f"Could not bind to ports {DEFAULT_PORT}-{DEFAULT_PORT + MAX_PORT_ATTEMPTS - 1}: address already in use.",
+                level="ERROR",
+            )
+            return 1
+        log_event(f"Failed to start server: {exc}", level="ERROR")
+        return 1
+    except Exception as exc:
+        log_event(f"Failed to start server: {exc}", level="ERROR")
+        return 1
+
+    log_event(f"Serving on http://{DEFAULT_HOST}:{port}")
     try:
         server.serve_forever()
     except KeyboardInterrupt:
-        pass
+        log_event("Shutdown requested by user.", level="INFO")
+    finally:
+        server.server_close()
+        log_event("Server stopped.", level="INFO")
     return 0
 
 
